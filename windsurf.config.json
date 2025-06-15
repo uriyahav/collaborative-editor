@@ -1,0 +1,19 @@
+{
+    "projectName": "collaborative-editor-refactor",
+    "techStack": ["React", "Socket.IO", "Node.js"],
+    "goals": [
+      "Refactor codebase using OOP and SOLID principles",
+      "Improve frontend state and logic separation",
+      "Implement scalable socket architecture",
+      "Modularize project into maintainable submodules",
+      "Add new features like presence, comments, versioning"
+    ],
+    "prompts": {
+      "initialAnalysis": "Analyze current structure, design flaws, and code smells. Propose a modular plan.",
+      "refactorFrontend": "Refactor UI components, isolate state, move logic into services/hooks, and modularize socket events.",
+      "refactorBackend": "If backend exists, apply MVC principles, decouple socket and controller logic, and add tests.",
+      "featureUpgrade": "Suggest and implement new features like presence indicators, commenting, or version history.",
+      "testing": "Write sample Jest/RTL tests to validate frontend logic and user flows."
+    }
+  }
+  
