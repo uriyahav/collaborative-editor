@@ -123,6 +123,64 @@ export class CollaborationService implements ICollaborationService {
     }
   }
 
+  async shareDocument(params: {
+    roomId: string;
+    email: string;
+    userType: 'creator' | 'editor' | 'viewer';
+    updatedBy: any;
+  }): Promise<ServiceResult<any>> {
+    try {
+      const { roomId, email, userType, updatedBy } = params;
+      
+      // Get access type based on user type
+      const accessType = this.getAccessType(userType);
+      
+      // Update room access
+      const roomResult = await this.liveblocksService.updateRoom(roomId, {
+        usersAccesses: {
+          [email]: accessType
+        }
+      });
+
+      if (!roomResult.success) {
+        return this.createErrorResult(roomResult.error!);
+      }
+
+      // Send notification to the new collaborator
+      const notificationResult = await this.liveblocksService.triggerInboxNotification({
+        userId: email,
+        kind: '$documentAccess',
+        subjectId: this.generateCollaborationId(),
+        activityData: {
+          userType,
+          title: `You have been granted ${userType} access to the document by ${updatedBy.name}`,
+          updatedBy: updatedBy.name,
+          avatar: updatedBy.avatar,
+          email: updatedBy.email
+        },
+        roomId
+      });
+
+      if (!notificationResult.success) {
+        console.warn('Failed to send notification:', notificationResult.error);
+      }
+
+      // Emit collaboration event
+      const event: CollaborationEvent = {
+        type: 'user_joined',
+        userId: email,
+        timestamp: new Date(),
+        data: { userType, updatedBy }
+      };
+      this.emitCollaborationEvent(roomId, event);
+
+      return this.createSuccessResult(roomResult.data);
+    } catch (error) {
+      const serviceError = this.createServiceError(error, 'SHARE_DOCUMENT_FAILED');
+      return this.createErrorResult(serviceError);
+    }
+  }
+
   subscribeToCollaborationEvents(
     roomId: string, 
     callback: (event: CollaborationEvent) => void
@@ -168,6 +226,18 @@ export class CollaborationService implements ICollaborationService {
       }
     }
     return 'viewer'; // Default fallback
+  }
+
+  private getAccessType(userType: 'creator' | 'editor' | 'viewer'): string[] {
+    switch (userType) {
+      case 'creator':
+      case 'editor':
+        return ['room:write'];
+      case 'viewer':
+        return ['room:read'];
+      default:
+        return ['room:read'];
+    }
   }
 
   // Utility methods for collaboration features

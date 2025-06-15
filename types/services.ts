@@ -96,6 +96,7 @@ export interface ICollaborationService {
   getActiveCollaborators(roomId: string): Promise<ServiceResult<Collaborator[]>>;
   updateUserPresence(roomId: string, presence: any): Promise<ServiceResult<void>>;
   subscribeToCollaborationEvents(roomId: string, callback: (event: CollaborationEvent) => void): () => void;
+  shareDocument(params: ShareDocumentParams): Promise<ServiceResult<any>>;
 }
 
 export interface ILiveblocksService {

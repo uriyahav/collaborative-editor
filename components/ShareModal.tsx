@@ -18,29 +18,45 @@ import { Label } from "./ui/label";
 import { Input } from "./ui/input";
 import UserTypeSelector from "./UserTypeSelector";
 import Collaborator from "./Collaborator";
-import { updateDocumentAccess } from "@/lib/actions/room.actions";
+import { useCollaboration } from '@/hooks/useCollaboration';
 
 const ShareModal = ({ roomId, collaborators, creatorId, currentUserType }: ShareDocumentDialogProps) => {
   const user = useSelf();
 
   const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-
   const [email, setEmail] = useState('');
   const [userType, setUserType] = useState<UserType>('viewer');
 
+  // Use the custom hook for collaboration operations
+  const { shareDocument, loading, error } = useCollaboration();
+
   const shareDocumentHandler = async () => {
-    setLoading(true);
+    try {
+      const result = await shareDocument({ 
+        roomId, 
+        email, 
+        userType: userType as UserType, 
+        updatedBy: user.info,
+      });
 
-    await updateDocumentAccess({ 
-      roomId, 
-      email, 
-      userType: userType as UserType, 
-      updatedBy: user.info,
-    });
-
-    setLoading(false);
+      if (result.success) {
+        setEmail('');
+        setUserType('viewer');
+        // Optionally close modal or show success message
+      } else {
+        console.error('Failed to share document:', result.error);
+      }
+    } catch (error) {
+      console.error('Error sharing document:', error);
+    }
   }
+
+  // Show error if sharing failed
+  React.useEffect(() => {
+    if (error) {
+      console.error('Collaboration operation error:', error);
+    }
+  }, [error]);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>

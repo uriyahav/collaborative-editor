@@ -55,6 +55,20 @@ export function useCollaboration() {
     return service.subscribeToCollaborationEvents(roomId, callback);
   }, [service]);
 
+  /** Share a document with a new user */
+  const shareDocument = useCallback(async (params: {
+    roomId: string;
+    email: string;
+    userType: 'creator' | 'editor' | 'viewer';
+    updatedBy: any;
+  }) => {
+    setLoading(true); setError(null);
+    const result = await service.shareDocument(params);
+    setLoading(false);
+    if (!result.success) setError(result.error!);
+    return result;
+  }, [service]);
+
   return {
     loading,
     error,
@@ -64,6 +78,7 @@ export function useCollaboration() {
     getActiveCollaborators,
     updateUserPresence,
     subscribeToCollaborationEvents,
+    shareDocument,
   };
 }
 

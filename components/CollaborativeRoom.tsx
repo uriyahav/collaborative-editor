@@ -8,35 +8,35 @@ import ActiveCollaborators from './ActiveCollaborators';
 import { useEffect, useRef, useState } from 'react';
 import { Input } from './ui/input';
 import Image from 'next/image';
-import { updateDocument } from '@/lib/actions/room.actions';
 import Loader from './Loader';
 import ShareModal from './ShareModal';
+import { useDocument } from '@/hooks/useDocument';
 
 const CollaborativeRoom = ({ roomId, roomMetadata, users, currentUserType }: CollaborativeRoomProps) => {
   const [documentTitle, setDocumentTitle] = useState(roomMetadata.title);
   const [editing, setEditing] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Use the custom hook for document operations
+  const { updateDocument, loading, error } = useDocument();
 
   const updateTitleHandler = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if(e.key === 'Enter') {
-      setLoading(true);
-
       try {
         if(documentTitle !== roomMetadata.title) {
-          const updatedDocument = await updateDocument(roomId, documentTitle);
+          const result = await updateDocument({ roomId, title: documentTitle });
           
-          if(updatedDocument) {
+          if(result.success) {
             setEditing(false);
+          } else {
+            console.error('Failed to update document:', result.error);
           }
         }
       } catch (error) {
-        console.error(error);
+        console.error('Error updating document:', error);
       }
-
-      setLoading(false);
     }
   }
 
@@ -44,7 +44,10 @@ const CollaborativeRoom = ({ roomId, roomMetadata, users, currentUserType }: Col
     const handleClickOutside = (e: MouseEvent) => {
       if(containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setEditing(false);
-        updateDocument(roomId, documentTitle);
+        // Use the hook's updateDocument method
+        if(documentTitle !== roomMetadata.title) {
+          updateDocument({ roomId, title: documentTitle });
+        }
       }
     }
 
@@ -53,13 +56,20 @@ const CollaborativeRoom = ({ roomId, roomMetadata, users, currentUserType }: Col
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [roomId, documentTitle])
+  }, [roomId, documentTitle, updateDocument, roomMetadata.title])
 
   useEffect(() => {
     if(editing && inputRef.current) {
       inputRef.current.focus();
     }
   }, [editing])
+
+  // Show error if document update failed
+  useEffect(() => {
+    if (error) {
+      console.error('Document operation error:', error);
+    }
+  }, [error])
   
 
   return (
@@ -76,7 +86,7 @@ const CollaborativeRoom = ({ roomId, roomMetadata, users, currentUserType }: Col
                   placeholder="Enter title"
                   onChange={(e) => setDocumentTitle(e.target.value)}
                   onKeyDown={updateTitleHandler}
-                  disable={!editing}
+                  disabled={!editing}
                   className="document-title-input"
                 />
               ) : (
