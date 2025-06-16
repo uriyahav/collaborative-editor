@@ -37,3 +37,8 @@ next-env.d.ts
 
 # Sentry Config File
 .env.sentry-build-plugin
+prompt.md
+
+# Ignore prompt.md (so that it remains untracked locally) and .next (build artifact)
+prompt.md
+.next
