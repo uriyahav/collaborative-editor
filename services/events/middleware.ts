@@ -64,7 +64,7 @@ export const performanceMiddleware: EventMiddleware = async (event: IEvent, next
     await next();
   } finally {
     const duration = performance.now() - startTime;
-    if (duration > 1000) { // Log slow events (over 1 second)
+    if (duration > 100) {
       console.warn(`[EventBus] Slow event detected: ${event.type} (${duration.toFixed(2)}ms)`);
     }
   }
@@ -101,7 +101,7 @@ export const createRateLimitMiddleware = (maxEventsPerSecond: number = 100): Eve
 /**
  * Event validation function that checks required properties
  */
-function validateEvent(event: IEvent): EventValidationResult {
+export function validateEvent(event: IEvent): EventValidationResult {
   const errors: string[] = [];
 
   if (!event.type) {
@@ -113,8 +113,8 @@ function validateEvent(event: IEvent): EventValidationResult {
   if (!event.source) {
     errors.push('Event source is required');
   }
-  if (typeof event.timestamp !== 'number') {
-    errors.push('Event timestamp must be a number');
+  if (!(event.timestamp instanceof Date)) {
+    errors.push('Event timestamp must be a Date');
   }
   if (typeof event.source !== 'string') {
     errors.push('Event source must be a string');

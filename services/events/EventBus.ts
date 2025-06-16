@@ -65,8 +65,19 @@ export class EventBus implements IEventBus {
    */
   public async emit<T extends IEvent>(event: T): Promise<void> {
     try {
-      // Validate event if validation is enabled
+      // Built-in validation (same as validation middleware)
       if (this.config.enableValidation) {
+        // Built-in validation
+        const { validateEvent } = await import('@/services/events/middleware');
+        const builtInValidation = validateEvent(event);
+        if (!builtInValidation.isValid) {
+          throw new EventBusError(
+            `Event validation failed: ${builtInValidation.errors?.join(', ')}`,
+            'VALIDATION_ERROR',
+            event
+          );
+        }
+        // Custom validator
         const validator = this.validators.get(event.type);
         if (validator) {
           const validationResult = validator(event);
@@ -171,11 +182,12 @@ export class EventBus implements IEventBus {
       const originalHandler = handler;
       const wrappedHandler: EventHandler<T> = async (event: T) => {
         await originalHandler(event);
-        subscription.unsubscribe();
+        this.unsubscribe({ eventType, handler: wrappedHandler as EventHandler, unsubscribe: () => {} });
       };
       this.handlers.get(eventType)!.delete(handler as EventHandler);
       this.handlers.get(eventType)!.add(wrappedHandler as EventHandler);
       subscription.handler = wrappedHandler as EventHandler;
+      subscription.unsubscribe = () => this.unsubscribe({ eventType, handler: wrappedHandler as EventHandler, unsubscribe: () => {} });
     }
 
     // Handle timeout option
@@ -190,6 +202,7 @@ export class EventBus implements IEventBus {
       this.handlers.get(eventType)!.delete(handler as EventHandler);
       this.handlers.get(eventType)!.add(wrappedHandler as EventHandler);
       subscription.handler = wrappedHandler as EventHandler;
+      subscription.unsubscribe = () => this.unsubscribe({ eventType, handler: wrappedHandler as EventHandler, unsubscribe: () => {} });
     }
 
     // Log if enabled
@@ -210,7 +223,7 @@ export class EventBus implements IEventBus {
       if (handlers.size === 0) {
         this.handlers.delete(subscription.eventType);
       }
-      this.stats.activeSubscriptions--;
+      this.stats.activeSubscriptions = Math.max(0, this.stats.activeSubscriptions - 1);
     }
 
     // Log if enabled
