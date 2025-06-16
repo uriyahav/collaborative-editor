@@ -138,4 +138,6 @@ export const isDocumentEvent = (event: IEvent): event is DocumentEvent => {
 
 export const isPresenceEvent = (event: IEvent): event is PresenceEvent => {
   return ['presence_updated', 'presence_removed'].includes(event.type);
-}; 
+};
+
+export type NextFunction = (event?: IEvent) => Promise<void>; 

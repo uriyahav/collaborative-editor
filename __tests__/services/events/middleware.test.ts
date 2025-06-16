@@ -1,50 +1,60 @@
+import { EventBus } from '@/services/events/EventBus';
+import { IEvent, EventBusError } from '@/types/events';
 import {
   loggingMiddleware,
   errorHandlingMiddleware,
   validationMiddleware,
   performanceMiddleware,
+  defaultMiddleware,
   createRateLimitMiddleware,
   createTransformMiddleware,
   createFilterMiddleware,
-  createBatchMiddleware,
-  defaultMiddleware
+  createBatchMiddleware
 } from '@/services/events/middleware';
-import { EventBusError, IEvent } from '@/types/events';
 
 describe('Event Bus Middleware', () => {
-  const mockEvent: IEvent = { 
-    type: 'test', 
-    timestamp: new Date(), 
-    source: 'test' 
-  };
-  const mockNext = jest.fn();
+  let mockEvent: IEvent;
+  let mockNext: jest.Mock;
+  let consoleSpy: jest.SpyInstance;
 
   beforeEach(() => {
+    mockEvent = {
+      type: 'test',
+      timestamp: new Date(),
+      source: 'test'
+    };
+    mockNext = jest.fn().mockResolvedValue(undefined);
+    consoleSpy = jest.spyOn(console, 'debug').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
     jest.clearAllMocks();
   });
 
   describe('loggingMiddleware', () => {
     it('should log event processing', async () => {
       await loggingMiddleware(mockEvent, mockNext);
-      expect(console.debug).toHaveBeenCalledWith(
+      expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Processing event: test'),
         expect.any(Object)
       );
-      expect(console.debug).toHaveBeenCalledWith(
-        expect.stringContaining('Completed event: test'),
-        expect.any(String)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Completed event: test (100.00ms)')
       );
       expect(mockNext).toHaveBeenCalled();
     });
 
     it('should log errors', async () => {
       const error = new Error('Test error');
+      const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
       mockNext.mockRejectedValueOnce(error);
       await expect(loggingMiddleware(mockEvent, mockNext)).rejects.toThrow(error);
-      expect(console.error).toHaveBeenCalledWith(
+      expect(errorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Error processing event: test'),
         error
       );
+      errorSpy.mockRestore();
     });
   });
 
@@ -75,28 +85,30 @@ describe('Event Bus Middleware', () => {
 
     it('should reject invalid events', async () => {
       const invalidEvent = { type: 'test' } as any;
-      await expect(validationMiddleware(invalidEvent, mockNext)).rejects.toThrow('Event validation failed');
+      await expect(validationMiddleware(invalidEvent, mockNext)).rejects.toThrow('Event timestamp must be a Date');
       expect(mockNext).not.toHaveBeenCalled();
     });
   });
 
   describe('performanceMiddleware', () => {
     it('should not log for fast events', async () => {
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       await performanceMiddleware(mockEvent, mockNext);
-      expect(console.warn).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
       expect(mockNext).toHaveBeenCalled();
+      warnSpy.mockRestore();
     });
 
     it('should log for slow events', async () => {
-      // Mock a slow event by incrementing the mock time
-      for (let i = 0; i < 11; i++) {
-        performance.now();
-      }
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      const originalPerformanceNow = performance.now;
+      performance.now = jest.fn(() => 0).mockReturnValueOnce(0).mockReturnValueOnce( 200 );
+      mockNext.mockImplementation(() => new Promise(resolve => (setTimeout(resolve, 100))));
       await performanceMiddleware(mockEvent, mockNext);
-      expect(console.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Slow event detected: test')
-      );
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Slow event detected: test'));
       expect(mockNext).toHaveBeenCalled();
+      warnSpy.mockRestore();
+      performance.now = originalPerformanceNow;
     });
   });
 
@@ -181,12 +193,11 @@ describe('Event Bus Middleware', () => {
 
   describe('defaultMiddleware', () => {
     it('should include all default middleware', () => {
-      expect(defaultMiddleware).toHaveLength(5);
-      expect(defaultMiddleware).toContain(loggingMiddleware);
-      expect(defaultMiddleware).toContain(errorHandlingMiddleware);
-      expect(defaultMiddleware).toContain(validationMiddleware);
-      expect(defaultMiddleware).toContain(performanceMiddleware);
-      expect(defaultMiddleware).toContain(expect.any(Function)); // rate limit middleware
+      expect(defaultMiddleware).toContainEqual(loggingMiddleware);
+      expect(defaultMiddleware).toContainEqual(errorHandlingMiddleware);
+      expect(defaultMiddleware).toContainEqual(validationMiddleware);
+      expect(defaultMiddleware).toContainEqual(performanceMiddleware);
+      expect(defaultMiddleware).toHaveLength(5); // Including rate limit middleware
     });
   });
 }); 

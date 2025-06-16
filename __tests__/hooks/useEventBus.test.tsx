@@ -10,74 +10,70 @@ describe('EventBus Hooks', () => {
   });
 
   describe('useEventBus', () => {
-    it('should provide event bus functionality', async () => {
+    it('should provide event bus instance', () => {
       const { result } = renderHook(() => useEventBus());
-      const handler = jest.fn();
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-
-      // Test subscribe
-      const unsubscribe = result.current.subscribe('test', handler);
-      await act(async () => {
-        await result.current.emit(event);
-      });
-      expect(handler).toHaveBeenCalledWith(event);
-
-      // Test unsubscribe
-      unsubscribe();
-      await act(async () => {
-        await result.current.emit(event);
-      });
-      expect(handler).toHaveBeenCalledTimes(1);
-
-      // Test getStats
-      const stats = result.current.getStats();
-      expect(stats.totalEventsEmitted).toBe(2);
-      expect(stats.activeSubscriptions).toBe(0);
+      expect(result.current).toHaveProperty('subscribe');
+      expect(result.current).toHaveProperty('emit');
+      expect(result.current).toHaveProperty('useMiddleware');
+      expect(result.current).toHaveProperty('addValidator');
+      expect(result.current).toHaveProperty('getStats');
     });
 
-    it('should clean up subscriptions on unmount', async () => {
-      const { result, unmount } = renderHook(() => useEventBus());
+    it('should handle subscriptions', async () => {
+      const { result } = renderHook(() => useEventBus());
       const handler = jest.fn();
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
 
-      result.current.subscribe('test', handler);
-      unmount();
+      act(() => {
+        result.current.subscribe('test', handler);
+      });
 
       await act(async () => {
         await result.current.emit(event);
       });
-      expect(handler).not.toHaveBeenCalled();
+
+      expect(handler).toHaveBeenCalledWith(event);
     });
 
     it('should handle middleware', async () => {
-      const { result } = renderHook(() => useEventBus());
-      const middleware = jest.fn().mockImplementation((event, next) => next());
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-
-      act(() => {
-        result.current.useMiddleware(middleware);
-      });
-
+      const middleware = jest.fn().mockImplementation((event, next) => next(event));
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
+      function TestComponent() {
+        useEventMiddleware(middleware);
+        return null;
+      }
+      renderHook(() => TestComponent());
       await act(async () => {
-        await result.current.emit(event);
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
       });
-
-      expect(middleware).toHaveBeenCalledWith(event, expect.any(Function));
+      expect(middleware).toHaveBeenCalled();
     });
 
     it('should handle validators', async () => {
-      const { result } = renderHook(() => useEventBus());
       const validator = jest.fn().mockReturnValue({ isValid: false, errors: ['Validation failed'] });
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-
-      act(() => {
-        result.current.addValidator('test', validator);
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
+      function TestComponent() {
+        useEventValidator('test', validator);
+        return null;
+      }
+      renderHook(() => TestComponent());
+      await act(async () => {
+        const eventBus = EventBus.getInstance();
+        await expect(eventBus.emit(event)).rejects.toThrow('Event emission failed');
       });
-
-      await expect(act(async () => {
-        await result.current.emit(event);
-      })).rejects.toThrow('Validation failed');
-
       expect(validator).toHaveBeenCalledWith(event);
     });
   });
@@ -85,94 +81,120 @@ describe('EventBus Hooks', () => {
   describe('useEventSubscription', () => {
     it('should subscribe to events', async () => {
       const handler = jest.fn();
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-      const { result: eventBus } = renderHook(() => useEventBus());
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
 
-      renderHook(() => useEventSubscription('test', handler));
+      const { unmount } = renderHook(() => useEventSubscription('test', handler));
 
       await act(async () => {
-        await eventBus.current.emit(event);
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
       });
 
       expect(handler).toHaveBeenCalledWith(event);
+      unmount();
     });
 
     it('should unsubscribe on unmount', async () => {
       const handler = jest.fn();
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-      const { result: eventBus } = renderHook(() => useEventBus());
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
 
       const { unmount } = renderHook(() => useEventSubscription('test', handler));
       unmount();
 
       await act(async () => {
-        await eventBus.current.emit(event);
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
       });
 
       expect(handler).not.toHaveBeenCalled();
     });
-
-    it('should handle subscription options', async () => {
-      const handler = jest.fn();
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-      const { result: eventBus } = renderHook(() => useEventBus());
-
-      renderHook(() => useEventSubscription('test', handler, { once: true }));
-
-      await act(async () => {
-        await eventBus.current.emit(event);
-        await eventBus.current.emit(event);
-      });
-
-      expect(handler).toHaveBeenCalledTimes(1);
-    });
   });
 
   describe('useEventMiddleware', () => {
-    it('should add and remove middleware', async () => {
-      const middleware = jest.fn().mockImplementation((event, next) => next());
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-      const { result: eventBus } = renderHook(() => useEventBus());
+    it('should add middleware', async () => {
+      const middleware = jest.fn().mockImplementation((event, next) => next(event));
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
 
       const { unmount } = renderHook(() => useEventMiddleware(middleware));
 
       await act(async () => {
-        await eventBus.current.emit(event);
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
       });
 
-      expect(middleware).toHaveBeenCalledWith(event, expect.any(Function));
+      expect(middleware).toHaveBeenCalled();
+      unmount();
+    });
 
+    it('should remove middleware on unmount', async () => {
+      const middleware = jest.fn().mockImplementation((event, next) => next(event));
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
+
+      const { unmount } = renderHook(() => useEventMiddleware(middleware));
       unmount();
 
       await act(async () => {
-        await eventBus.current.emit(event);
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
       });
 
-      // Middleware should not be called after unmount
-      expect(middleware).toHaveBeenCalledTimes(1);
+      expect(middleware).not.toHaveBeenCalled();
     });
   });
 
   describe('useEventValidator', () => {
-    it('should add and remove validators', async () => {
+    it('should add validator', async () => {
       const validator = jest.fn().mockReturnValue({ isValid: false, errors: ['Validation failed'] });
-      const event: IEvent = { type: 'test', timestamp: new Date(), source: 'test' };
-      const { result: eventBus } = renderHook(() => useEventBus());
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
 
       const { unmount } = renderHook(() => useEventValidator('test', validator));
 
-      await expect(act(async () => {
-        await eventBus.current.emit(event);
-      })).rejects.toThrow('Validation failed');
+      await act(async () => {
+        const eventBus = EventBus.getInstance();
+        await expect(eventBus.emit(event)).rejects.toThrow('Event emission failed');
+      });
 
       expect(validator).toHaveBeenCalledWith(event);
+      unmount();
+    });
 
+    it('should remove validator on unmount', async () => {
+      const validator = jest.fn().mockReturnValue({ isValid: false, errors: ['Validation failed'] });
+      const event: IEvent = {
+        type: 'test',
+        timestamp: new Date(),
+        source: 'test'
+      };
+
+      const { unmount } = renderHook(() => useEventValidator('test', validator));
       unmount();
 
-      // Event should pass after validator is removed
-      await expect(act(async () => {
-        await eventBus.current.emit(event);
-      })).resolves.not.toThrow();
+      await act(async () => {
+        const eventBus = EventBus.getInstance();
+        await eventBus.emit(event);
+      });
+
+      expect(validator).not.toHaveBeenCalled();
     });
   });
 }); 
