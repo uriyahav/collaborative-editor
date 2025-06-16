@@ -97,6 +97,35 @@ src/
 
 ---
 
+### ✅ Iteration 2.5: Hook Integration
+**Goal**: Integrate custom hooks into existing components to replace direct API calls
+
+**Tasks**:
+- [x] Refactor `CollaborativeRoom.tsx` to use `useDocument` hook
+- [x] Refactor `ShareModal.tsx` to use `useCollaboration` hook
+- [x] Add `shareDocument` method to `CollaborationService`
+- [x] Update `ICollaborationService` interface
+- [x] Fix TypeScript errors and improve error handling
+- [x] Maintain all existing functionality
+
+**Testing Checkpoint**:
+- [x] Verify components compile without errors
+- [x] Test document title editing functionality
+- [x] Test document sharing functionality
+- [x] Validate error handling works correctly
+- [x] Confirm no regression in user experience
+
+**Files Modified**:
+- [x] `components/CollaborativeRoom.tsx` - Integrated useDocument hook
+- [x] `components/ShareModal.tsx` - Integrated useCollaboration hook
+- [x] `services/collaboration/CollaborationService.ts` - Added shareDocument method
+- [x] `hooks/useCollaboration.ts` - Added shareDocument method
+- [x] `types/services.ts` - Updated ICollaborationService interface
+
+**Results**: ✅ **COMPLETED** - Successfully integrated custom hooks into key components. Components now use the service layer through hooks, providing better error handling, loading states, and separation of concerns. All existing functionality preserved with improved architecture.
+
+---
+
 ### ✅ Iteration 3: Event Bus Implementation
 **Goal**: Implement event bus for decoupled communication
 
@@ -500,6 +529,82 @@ npm run dev
 7. ✅ Start next iteration
 
 ---
+
+**Status**: 🟡 Ready to begin Iteration 3
+**Current Phase**: Phase 1 - Foundation & Services
+**Next Iteration**: Iteration 3 - Event Bus Implementation 
+
+## Iteration 3: Event Bus Implementation ✅
+
+### Completed Tasks
+- Created a type-safe event bus system with the following features:
+  - Singleton pattern for global event management
+  - Middleware support for event processing
+  - Event validation
+  - Error handling
+  - Performance monitoring
+  - Rate limiting
+  - Event batching
+  - Comprehensive test coverage
+
+### Key Components Added
+1. **Event Types and Interfaces** (`types/events.ts`)
+   - Base event interface
+   - Event metadata types
+   - Event handler types
+   - Middleware types
+   - Validation types
+   - Error types
+
+2. **EventBus Service** (`services/events/EventBus.ts`)
+   - Singleton implementation
+   - Event emission and subscription
+   - Middleware chain processing
+   - Event validation
+   - Error handling
+   - Statistics tracking
+
+3. **Middleware System** (`services/events/middleware.ts`)
+   - Logging middleware
+   - Error handling middleware
+   - Validation middleware
+   - Performance monitoring middleware
+   - Rate limiting middleware
+   - Event transformation middleware
+   - Event filtering middleware
+   - Event batching middleware
+
+4. **React Hooks** (`hooks/useEventBus.ts`)
+   - `useEventBus` for general event bus access
+   - `useEventSubscription` for subscribing to events
+   - `useEventMiddleware` for adding middleware
+   - `useEventValidator` for adding validators
+
+5. **Tests**
+   - EventBus service tests
+   - Middleware tests
+   - Hook tests
+   - Jest configuration
+   - Test utilities
+
+### Testing Coverage
+- Unit tests for EventBus service
+- Unit tests for middleware
+- Integration tests for hooks
+- Test coverage requirements:
+  - Branches: 80%
+  - Functions: 80%
+  - Lines: 80%
+  - Statements: 80%
+
+### Next Steps
+- Begin Iteration 4: State Management Implementation
+  - Implement global state management
+  - Create state slices for different features
+  - Add state persistence
+  - Implement state synchronization
+  - Add state middleware
+  - Create state hooks
 
 **Status**: 🟡 Ready to begin Iteration 3
 **Current Phase**: Phase 1 - Foundation & Services
